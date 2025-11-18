@@ -1,0 +1,120 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Hybrid Recommender</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; max-width: 900px; margin: 24px auto; }
+    .row { display: flex; gap: 10px; margin: 10px 0; align-items: center; }
+    input, button { padding: 8px 10px; font-size: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(160px,1fr)); gap: 12px; margin-top: 10px; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 10px; }
+    .muted { color: #666; font-size: 0.9rem; }
+    hr { margin: 12px 0 18px; }
+    .err { border-color: #f66; }
+  </style>
+</head>
+<body>
+  <h1>🎬 Hybrid Recommender</h1>
+
+  <div class="row">
+    <label>API Base:</label>
+    <input id="base" value="https://hybrid-rec-5th7.onrender.com" size="35"/>
+    <button id="btnHealth">Health</button>
+    <span id="health" class="muted"></span>
+  </div>
+
+  <hr/>
+
+  <h3>Movie ➜ Movie (content)</h3>
+  <div class="row">
+    <input id="seed" type="number" placeholder="TMDB ID e.g. 862" value="862"/>
+    <input id="kA" type="number" value="12" />
+    <button id="btnA">Recommend</button>
+  </div>
+  <div id="outA" class="grid"></div>
+
+  <h3>User ➜ Movies (collaborative over shortlist)</h3>
+  <div class="row">
+    <input id="uidB" type="number" placeholder="User ID e.g. 1" value="1"/>
+    <input id="kB" type="number" value="12" />
+    <button id="btnB">Recommend</button>
+  </div>
+  <div id="outB" class="grid"></div>
+
+  <h3>Hybrid (content + collaborative)</h3>
+  <div class="row">
+    <input id="uidC" type="number" placeholder="User ID e.g. 1" value="1"/>
+    <input id="kC" type="number" value="12" />
+    <input id="M" type="number" value="200" />
+    <input id="C" type="number" value="3.0" step="0.5" />
+    <button id="btnC">Recommend</button>
+  </div>
+  <div id="alphaC" class="muted"></div>
+  <div id="outC" class="grid"></div>
+
+<script>
+const el = id => document.getElementById(id);
+const card = (item) => `
+  <div class="card">
+    <div><b>${item.title ?? "(title N/A)"}</b></div>
+    <div class="muted">TMDB: <code>${item.tmdb_id}</code>${item.score!==undefined?` · score=${Number(item.score).toFixed(3)}`:""}</div>
+  </div>`;
+
+function show(where, html){ el(where).innerHTML = html; }
+function showErr(where, msg, e){
+  console.error(msg, e||"");
+  show(where, `<div class="card err"><b>Error</b><div class="muted">${msg}</div></div>`);
+}
+
+async function GET(url, outId){
+  console.log("GET", url);
+  try{
+    const r = await fetch(url, { mode: "cors" });
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    const j = await r.json();
+    console.log("RESP", j);
+    return j;
+  }catch(e){
+    showErr(outId, e.message || String(e), e);
+    throw e;
+  }
+}
+
+async function ping(){
+  el('health').textContent = '…';
+  const base = el('base').value.trim();
+  const j = await GET(`${base}/health`, 'health');
+  el('health').textContent = `users=${j.users}, items=${j.items}, dim=${j.dim}`;
+}
+
+async function recByMovie(){
+  const base = el('base').value.trim(), seed = el('seed').value.trim(), k = el('kA').value;
+  show('outA','…');
+  const j = await GET(`${base}/recommend_by_movie?tmdb_id=${encodeURIComponent(seed)}&k=${encodeURIComponent(k)}`, 'outA');
+  show('outA', (j.items||[]).map(card).join('') || '<div class="muted">No results</div>');
+}
+
+async function recForUser(){
+  const base = el('base').value.trim(), uid = el('uidB').value.trim(), k = el('kB').value;
+  show('outB','…');
+  const j = await GET(`${base}/recommend_for_user?user_id=${encodeURIComponent(uid)}&k=${encodeURIComponent(k)}`, 'outB');
+  show('outB', (j.items||[]).map(card).join('') || '<div class="muted">No results</div>');
+}
+
+async function recHybrid(){
+  const base = el('base').value.trim(), uid = el('uidC').value.trim(), k = el('kC').value;
+  const M = el('M').value, C = el('C').value;
+  show('outC','…');
+  const j = await GET(`${base}/recommend_hybrid?user_id=${encodeURIComponent(uid)}&k=${encodeURIComponent(k)}&M=${encodeURIComponent(M)}&C=${encodeURIComponent(C)}`, 'outC');
+  el('alphaC').textContent = `alpha=${j.alpha} · shortlist M=${j.used_shortlist_M}`;
+  show('outC', (j.items||[]).map(card).join('') || '<div class="muted">No results</div>');
+}
+
+document.getElementById('btnHealth').addEventListener('click', () => ping());
+document.getElementById('btnA').addEventListener('click', () => recByMovie());
+document.getElementById('btnB').addEventListener('click', () => recForUser());
+document.getElementById('btnC').addEventListener('click', () => recHybrid());
+</script>
+</body>
+</html>

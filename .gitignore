@@ -1,0 +1,29 @@
+# Python / env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Virtual env
+.env
+.venv/
+movielens/
+
+# OS junk
+.DS_Store
+
+# Large dataset
+data/
+
+# Large artifacts
+features_artifacts/
+checkpoints/
+mappings/*
+!mappings/*.json 
+
+# Big archive
+archive.zip

@@ -1,0 +1,7 @@
+# requirements-api.txt  (runtime only)
+fastapi
+uvicorn
+numpy
+faiss-cpu
+torch
+pydantic
